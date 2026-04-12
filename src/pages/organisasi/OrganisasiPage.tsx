@@ -7,7 +7,7 @@ import { Plus, Pencil, Trash2, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { organisasiApi } from '../../api';
 import { getImageUrl, getValidationErrors } from '../../utils';
-import type { Jabatan } from '../../types';
+import type { Jabatan, Organisasi } from '../../types';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import Input from '../../components/ui/Input';
@@ -25,14 +25,14 @@ const BIDANG_OPTIONS = [
 ];
 
 const bidangSchema = z.object({
-  nama: z.string().min(1, 'Nama wajib diisi'),
   deskripsi: z.string().optional(),
 });
 
 const jabatanSchema = z.object({
-  nama: z.string().min(1, 'Nama jabatan wajib diisi'),
-  nama_pejabat: z.string().optional(),
-  urutan: z.coerce.number().min(1),
+  nama_jabatan: z.string().min(1, 'Nama jabatan wajib diisi'),
+  nama_pejabat: z.string().min(1, 'Nama pejabat wajib diisi'),
+  nip: z.string().optional(),
+  tugas_fungsi: z.string().optional(), // textarea: newline-separated list
 });
 
 type BidangFormData = z.infer<typeof bidangSchema>;
@@ -45,7 +45,6 @@ const OrganisasiPage: React.FC = () => {
   const [jabatanModalOpen, setJabatanModalOpen] = useState(false);
   const [editJabatan, setEditJabatan] = useState<Jabatan | null>(null);
   const [deleteJabatan, setDeleteJabatan] = useState<Jabatan | null>(null);
-  const [bidangFotoFile, setBidangFotoFile] = useState<File | null>(null);
   const [jabatanFotoFile, setJabatanFotoFile] = useState<File | null>(null);
 
   const { data: bidangData, isLoading: bidangLoading } = useQuery({
@@ -53,11 +52,11 @@ const OrganisasiPage: React.FC = () => {
     queryFn: () => organisasiApi.getByBidang(activeBidang),
   });
 
-  const bidang = bidangData?.data?.data || bidangData?.data;
+  const bidang: Organisasi | null = bidangData?.data?.data || bidangData?.data || null;
 
   const { data: jabatanData, isLoading: jabatanLoading } = useQuery({
     queryKey: ['jabatan', bidang?.id],
-    queryFn: () => organisasiApi.getJabatan(bidang.id),
+    queryFn: () => organisasiApi.getJabatan(bidang!.id),
     enabled: !!bidang?.id,
   });
 
@@ -69,16 +68,14 @@ const OrganisasiPage: React.FC = () => {
 
   const openBidangEdit = () => {
     bidangForm.reset({
-      nama: bidang?.nama || '',
       deskripsi: bidang?.deskripsi || '',
     });
-    setBidangFotoFile(null);
     setBidangModalOpen(true);
   };
 
   const openJabatanAdd = () => {
     setEditJabatan(null);
-    jabatanForm.reset({ nama: '', nama_pejabat: '', urutan: jabatanList.length + 1 });
+    jabatanForm.reset({ nama_jabatan: '', nama_pejabat: '', nip: '', tugas_fungsi: '' });
     setJabatanFotoFile(null);
     setJabatanModalOpen(true);
   };
@@ -86,21 +83,18 @@ const OrganisasiPage: React.FC = () => {
   const openJabatanEdit = (jab: Jabatan) => {
     setEditJabatan(jab);
     jabatanForm.reset({
-      nama: jab.nama,
-      nama_pejabat: jab.nama_pejabat || '',
-      urutan: jab.urutan,
+      nama_jabatan: jab.nama_jabatan,
+      nama_pejabat: jab.nama_pejabat,
+      nip: jab.nip || '',
+      tugas_fungsi: jab.tugas_fungsi?.join('\n') || '',
     });
     setJabatanFotoFile(null);
     setJabatanModalOpen(true);
   };
 
   const saveBidangMutation = useMutation({
-    mutationFn: (data: BidangFormData) => {
-      const fd = new FormData();
-      Object.entries(data).forEach(([k, v]) => v && fd.append(k, v));
-      if (bidangFotoFile) fd.append('foto', bidangFotoFile);
-      return organisasiApi.updateBidang(activeBidang, fd);
-    },
+    mutationFn: (data: BidangFormData) =>
+      organisasiApi.updateBidang(activeBidang, { deskripsi: data.deskripsi }),
     onSuccess: () => {
       toast.success('Data bidang disimpan');
       setBidangModalOpen(false);
@@ -112,12 +106,20 @@ const OrganisasiPage: React.FC = () => {
   const saveJabatanMutation = useMutation({
     mutationFn: (data: JabatanFormData) => {
       const fd = new FormData();
-      Object.entries(data).forEach(([k, v]) => fd.append(k, String(v)));
+      fd.append('nama_jabatan', data.nama_jabatan);
+      fd.append('nama_pejabat', data.nama_pejabat);
+      if (data.nip) fd.append('nip', data.nip);
+      // Convert newline-separated textarea into array items
+      const tugasList = (data.tugas_fungsi || '')
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      tugasList.forEach((t) => fd.append('tugas_fungsi[]', t));
       if (jabatanFotoFile) fd.append('foto', jabatanFotoFile);
       if (editJabatan) {
-        return organisasiApi.updateJabatan(bidang.id, editJabatan.id, fd);
+        return organisasiApi.updateJabatan(bidang!.id, editJabatan.id, fd);
       }
-      return organisasiApi.addJabatan(bidang.id, fd);
+      return organisasiApi.addJabatan(bidang!.id, fd);
     },
     onSuccess: () => {
       toast.success(editJabatan ? 'Jabatan diperbarui' : 'Jabatan ditambahkan');
@@ -128,7 +130,7 @@ const OrganisasiPage: React.FC = () => {
   });
 
   const deleteJabatanMutation = useMutation({
-    mutationFn: (jabId: number) => organisasiApi.deleteJabatan(bidang.id, jabId),
+    mutationFn: (jabId: number) => organisasiApi.deleteJabatan(bidang!.id, jabId),
     onSuccess: () => {
       toast.success('Jabatan dihapus');
       setDeleteJabatan(null);
@@ -168,22 +170,13 @@ const OrganisasiPage: React.FC = () => {
       ) : (
         <div className="card">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4">
-            <div className="flex items-start gap-4">
-              {bidang?.foto && (
-                <img
-                  src={getImageUrl(bidang.foto) || undefined}
-                  alt={bidang.nama}
-                  className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
-                />
-              )}
-              <div>
-                <h3 className="font-semibold text-gray-800">
-                  {bidang?.nama || BIDANG_OPTIONS.find(b => b.kode === activeBidang)?.label}
-                </h3>
-                <p className="text-sm text-gray-500 mt-0.5">
-                  {bidang?.deskripsi || 'Belum ada deskripsi'}
-                </p>
-              </div>
+            <div>
+              <h3 className="font-semibold text-gray-800">
+                {BIDANG_OPTIONS.find(b => b.kode === activeBidang)?.label}
+              </h3>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {bidang?.deskripsi || 'Belum ada deskripsi'}
+              </p>
             </div>
             <Button
               variant="outline"
@@ -240,33 +233,43 @@ const OrganisasiPage: React.FC = () => {
                   ) : (
                     <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
                       <span className="text-blue-600 font-semibold text-sm">
-                        {jab.nama_pejabat?.charAt(0) || jab.nama?.charAt(0) || '?'}
+                        {jab.nama_pejabat?.charAt(0) || '?'}
                       </span>
                     </div>
                   )}
                   <div className="min-w-0">
                     <p className="font-medium text-sm text-gray-800 truncate">
-                      {jab.nama_pejabat || '-'}
+                      {jab.nama_pejabat}
                     </p>
-                    <p className="text-xs text-gray-500 truncate">{jab.nama}</p>
+                    <p className="text-xs text-gray-500 truncate">{jab.nama_jabatan}</p>
+                    {jab.nip && (
+                      <p className="text-xs text-gray-400 truncate">NIP: {jab.nip}</p>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="badge badge-blue text-xs">#{jab.urutan}</span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => openJabatanEdit(jab)}
-                      className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setDeleteJabatan(jab)}
-                      className="p-1.5 text-red-600 hover:bg-red-50 rounded-md"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
+                {jab.tugas_fungsi && jab.tugas_fungsi.length > 0 && (
+                  <ul className="mb-2 space-y-0.5">
+                    {jab.tugas_fungsi.slice(0, 2).map((t, i) => (
+                      <li key={i} className="text-xs text-gray-500 truncate">• {t}</li>
+                    ))}
+                    {jab.tugas_fungsi.length > 2 && (
+                      <li className="text-xs text-gray-400">+{jab.tugas_fungsi.length - 2} lainnya</li>
+                    )}
+                  </ul>
+                )}
+                <div className="flex items-center justify-end gap-1 pt-2 border-t border-gray-100">
+                  <button
+                    onClick={() => openJabatanEdit(jab)}
+                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setDeleteJabatan(jab)}
+                    className="p-1.5 text-red-600 hover:bg-red-50 rounded-md"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               </div>
             ))}
@@ -284,20 +287,10 @@ const OrganisasiPage: React.FC = () => {
           onSubmit={bidangForm.handleSubmit((d) => saveBidangMutation.mutate(d))}
           className="space-y-4"
         >
-          <ImageUpload
-            label="Foto Bidang"
-            currentImage={bidang?.foto ? getImageUrl(bidang.foto) || undefined : undefined}
-            onChange={setBidangFotoFile}
-          />
-          <Input
-            label="Nama Bidang"
-            required
-            error={bidangForm.formState.errors.nama?.message}
-            {...bidangForm.register('nama')}
-          />
           <Textarea
             label="Deskripsi"
-            rows={3}
+            rows={4}
+            placeholder="Deskripsi singkat bidang..."
             {...bidangForm.register('deskripsi')}
           />
           <div className="flex justify-end gap-2 pt-2">
@@ -326,22 +319,34 @@ const OrganisasiPage: React.FC = () => {
             currentImage={editJabatan?.foto ? getImageUrl(editJabatan.foto) || undefined : undefined}
             onChange={setJabatanFotoFile}
           />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Nama Jabatan"
+              required
+              placeholder="Kepala Bidang"
+              error={jabatanForm.formState.errors.nama_jabatan?.message}
+              {...jabatanForm.register('nama_jabatan')}
+            />
+            <Input
+              label="Nama Pejabat"
+              required
+              placeholder="Nama lengkap pejabat"
+              error={jabatanForm.formState.errors.nama_pejabat?.message}
+              {...jabatanForm.register('nama_pejabat')}
+            />
+          </div>
           <Input
-            label="Nama Jabatan"
-            required
-            error={jabatanForm.formState.errors.nama?.message}
-            {...jabatanForm.register('nama')}
+            label="NIP"
+            placeholder="Nomor Induk Pegawai (opsional)"
+            {...jabatanForm.register('nip')}
           />
-          <Input
-            label="Nama Pejabat"
-            {...jabatanForm.register('nama_pejabat')}
+          <Textarea
+            label="Tugas & Fungsi"
+            rows={4}
+            placeholder="Tulis satu tugas per baris..."
+            {...jabatanForm.register('tugas_fungsi')}
           />
-          <Input
-            label="Urutan"
-            type="number"
-            min={1}
-            {...jabatanForm.register('urutan')}
-          />
+          <p className="text-xs text-gray-400 -mt-2">Tulis satu tugas/fungsi per baris.</p>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" type="button" onClick={() => setJabatanModalOpen(false)}>
               Batal
@@ -361,7 +366,7 @@ const OrganisasiPage: React.FC = () => {
           deleteJabatan && deleteJabatanMutation.mutate(deleteJabatan.id)
         }
         title="Hapus Jabatan"
-        message={`Hapus jabatan "${deleteJabatan?.nama}"?`}
+        message={`Hapus jabatan "${deleteJabatan?.nama_jabatan}"?`}
         loading={deleteJabatanMutation.isPending}
       />
     </div>

@@ -3,26 +3,37 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, FileText, Download } from 'lucide-react';
 import { useState } from 'react';
 import { layananApi } from '../../api';
-import { getImageUrl, getValidationErrors, truncate } from '../../utils';
+import { getValidationErrors, truncate } from '../../utils';
 import type { Layanan } from '../../types';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import Input from '../../components/ui/Input';
 import Textarea from '../../components/ui/Textarea';
-import ImageUpload from '../../components/ui/ImageUpload';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import EmptyState from '../../components/ui/EmptyState';
 
+// Tipe layanan sesuai Layanan::TIPE_LIST di backend
+const TIPE_OPTIONS = [
+  { value: 'apbd', label: 'APBD' },
+  { value: 'apbd_p', label: 'APBD Perubahan' },
+  { value: 'lkpd', label: 'LKPD' },
+  { value: 'rka', label: 'RKA' },
+  { value: 'dpa', label: 'DPA' },
+  { value: 'laporan', label: 'Laporan Keuangan' },
+];
+
 const schema = z.object({
-  nama: z.string().min(1, 'Nama layanan wajib diisi'),
+  tipe: z.string().min(1, 'Tipe layanan wajib dipilih'),
+  judul: z.string().min(1, 'Judul layanan wajib diisi'),
   deskripsi: z.string().optional(),
-  ikon: z.string().optional(),
-  urutan: z.coerce.number().min(1),
-  aktif: z.boolean().default(true),
+  tahun_apbd: z.coerce
+    .number()
+    .min(2000, 'Tahun minimal 2000')
+    .max(2100, 'Tahun maksimal 2100'),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -33,7 +44,7 @@ const LayananPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<Layanan | null>(null);
   const [deleteItem, setDeleteItem] = useState<Layanan | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [dokumenFile, setDokumenFile] = useState<File | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['layanan'],
@@ -44,7 +55,9 @@ const LayananPage: React.FC = () => {
 
   const filtered = items.filter(
     (item) =>
-      !search || item.nama.toLowerCase().includes(search.toLowerCase())
+      !search ||
+      item.judul.toLowerCase().includes(search.toLowerCase()) ||
+      String(item.tahun_apbd).includes(search)
   );
 
   const {
@@ -55,31 +68,35 @@ const LayananPage: React.FC = () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } = useForm<FormData>({ resolver: zodResolver(schema) as any });
 
+  const currentYear = new Date().getFullYear();
+
   const openAdd = () => {
     setEditItem(null);
-    reset({ nama: '', deskripsi: '', ikon: '', urutan: items.length + 1, aktif: true });
-    setImageFile(null);
+    reset({ tipe: '', judul: '', deskripsi: '', tahun_apbd: currentYear });
+    setDokumenFile(null);
     setModalOpen(true);
   };
 
   const openEdit = (item: Layanan) => {
     setEditItem(item);
     reset({
-      nama: item.nama,
+      tipe: item.tipe,
+      judul: item.judul,
       deskripsi: item.deskripsi || '',
-      ikon: item.ikon || '',
-      urutan: item.urutan,
-      aktif: item.aktif,
+      tahun_apbd: item.tahun_apbd,
     });
-    setImageFile(null);
+    setDokumenFile(null);
     setModalOpen(true);
   };
 
   const saveMutation = useMutation({
     mutationFn: (data: FormData) => {
       const fd = new FormData();
-      Object.entries(data).forEach(([k, v]) => fd.append(k, String(v)));
-      if (imageFile) fd.append('gambar', imageFile);
+      fd.append('tipe', data.tipe);
+      fd.append('judul', data.judul);
+      if (data.deskripsi) fd.append('deskripsi', data.deskripsi);
+      fd.append('tahun_apbd', String(data.tahun_apbd));
+      if (dokumenFile) fd.append('file_dokumen', dokumenFile);
       if (editItem) return layananApi.update(editItem.id, fd);
       return layananApi.create(fd);
     },
@@ -100,6 +117,9 @@ const LayananPage: React.FC = () => {
     },
     onError: () => toast.error('Gagal menghapus layanan'),
   });
+
+  const getTipeLabel = (tipe: string) =>
+    TIPE_OPTIONS.find((o) => o.value === tipe)?.label || tipe.toUpperCase();
 
   return (
     <div className="space-y-6">
@@ -122,7 +142,7 @@ const LayananPage: React.FC = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Cari layanan..."
+            placeholder="Cari layanan atau tahun..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="input-field pl-9"
@@ -145,53 +165,51 @@ const LayananPage: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((item) => (
-            <div key={item.id} className="card hover:shadow-md transition-shadow p-0 overflow-hidden">
-              {item.gambar && (
-                <img
-                  src={getImageUrl(item.gambar) || undefined}
-                  alt={item.nama}
-                  className="w-full h-32 object-cover"
-                />
-              )}
-              <div className="p-4">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <h4 className="font-semibold text-gray-800 text-sm">
-                    {item.nama}
-                  </h4>
-                  <span
-                    className={`badge flex-shrink-0 ${
-                      item.aktif ? 'badge-green' : 'badge-gray'
-                    }`}
-                  >
-                    {item.aktif ? 'Aktif' : 'Nonaktif'}
-                  </span>
+            <div key={item.id} className="card hover:shadow-md transition-shadow">
+              <div className="flex items-start gap-3 mb-3">
+                <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                  <FileText className="h-5 w-5 text-blue-600" />
                 </div>
-                {item.deskripsi && (
-                  <p className="text-xs text-gray-500 mb-3">
-                    {truncate(item.deskripsi, 80)}
-                  </p>
-                )}
-                {item.ikon && (
-                  <p className="text-xs text-gray-400 mb-3">
-                    Ikon: <code className="bg-gray-100 px-1 rounded">{item.ikon}</code>
-                  </p>
-                )}
-                <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
-                  <span className="badge badge-blue text-xs">#{item.urutan}</span>
-                  <div className="flex items-center gap-1 ml-auto">
-                    <button
-                      onClick={() => openEdit(item)}
-                      className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => setDeleteItem(item)}
-                      className="p-1.5 text-red-600 hover:bg-red-50 rounded-md"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <h4 className="font-semibold text-gray-800 text-sm leading-snug">
+                      {item.judul}
+                    </h4>
+                    <span className="badge badge-blue flex-shrink-0">{item.tahun_apbd}</span>
                   </div>
+                  <span className="badge badge-gray mt-1">{getTipeLabel(item.tipe)}</span>
+                </div>
+              </div>
+              {item.deskripsi && (
+                <p className="text-xs text-gray-500 mb-3">
+                  {truncate(item.deskripsi, 80)}
+                </p>
+              )}
+              <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+                {item.file_dokumen && (
+                  <a
+                    href={item.file_dokumen}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-xs text-green-700 bg-green-50 px-2 py-1 rounded-md hover:bg-green-100"
+                  >
+                    <Download className="h-3 w-3" />
+                    Unduh
+                  </a>
+                )}
+                <div className="flex items-center gap-1 ml-auto">
+                  <button
+                    onClick={() => openEdit(item)}
+                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setDeleteItem(item)}
+                    className="p-1.5 text-red-600 hover:bg-red-50 rounded-md"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -209,45 +227,59 @@ const LayananPage: React.FC = () => {
           onSubmit={handleSubmit((d) => saveMutation.mutate(d as FormData))}
           className="space-y-4"
         >
-          <ImageUpload
-            label="Gambar Layanan"
-            currentImage={editItem?.gambar ? getImageUrl(editItem.gambar) || undefined : undefined}
-            onChange={setImageFile}
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="label">
+                Tipe Layanan <span className="text-red-500">*</span>
+              </label>
+              <select
+                className={`input-field ${errors.tipe ? 'input-field-error' : ''}`}
+                {...register('tipe')}
+              >
+                <option value="">-- Pilih Tipe --</option>
+                {TIPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              {errors.tipe && (
+                <p className="text-xs text-red-500">{errors.tipe.message}</p>
+              )}
+            </div>
+            <Input
+              label="Tahun APBD"
+              required
+              type="number"
+              min={2000}
+              max={2100}
+              error={errors.tahun_apbd?.message}
+              {...register('tahun_apbd')}
+            />
+          </div>
           <Input
-            label="Nama Layanan"
+            label="Judul Layanan"
             required
-            error={errors.nama?.message}
-            {...register('nama')}
+            error={errors.judul?.message}
+            {...register('judul')}
           />
           <Textarea
             label="Deskripsi"
             rows={3}
             {...register('deskripsi')}
           />
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Ikon (class name)"
-              placeholder="e.g. fa-file-alt"
-              {...register('ikon')}
-            />
-            <Input
-              label="Urutan"
-              type="number"
-              min={1}
-              {...register('urutan')}
-            />
-          </div>
           <div className="space-y-1">
-            <label className="label">Status</label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded text-blue-600"
-                {...register('aktif')}
-              />
-              <span className="text-sm text-gray-700">Aktifkan layanan</span>
-            </label>
+            <label className="label">File Dokumen</label>
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+              onChange={(e) => setDokumenFile(e.target.files?.[0] || null)}
+              className="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+            />
+            <p className="text-xs text-gray-400">Format: PDF, Word, Excel, PowerPoint. Maks. 20MB.</p>
+            {editItem?.file_dokumen && !dokumenFile && (
+              <p className="text-xs text-green-600">✓ Sudah ada file dokumen tersimpan</p>
+            )}
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" type="button" onClick={() => setModalOpen(false)}>
@@ -266,7 +298,7 @@ const LayananPage: React.FC = () => {
         onClose={() => setDeleteItem(null)}
         onConfirm={() => deleteItem && deleteMutation.mutate(deleteItem.id)}
         title="Hapus Layanan"
-        message={`Hapus layanan "${deleteItem?.nama}"?`}
+        message={`Hapus layanan "${deleteItem?.judul}"?`}
         loading={deleteMutation.isPending}
       />
     </div>

@@ -14,15 +14,14 @@ import ImageUpload from '../../components/ui/ImageUpload';
 import { getImageUrl, getValidationErrors } from '../../utils';
 
 const schema = z.object({
-  nama: z.string().min(1, 'Nama instansi wajib diisi'),
-  singkatan: z.string().optional(),
+  nama_instansi: z.string().min(1, 'Nama instansi wajib diisi'),
   visi: z.string().optional(),
   misi: z.string().optional(),
+  sejarah: z.string().optional(),
   alamat: z.string().optional(),
   telepon: z.string().optional(),
   email: z.string().email('Email tidak valid').optional().or(z.literal('')),
   website: z.string().optional(),
-  deskripsi: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -30,6 +29,7 @@ type FormData = z.infer<typeof schema>;
 const ProfilePage: React.FC = () => {
   const queryClient = useQueryClient();
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [strukturFile, setStrukturFile] = useState<File | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['profile'],
@@ -50,15 +50,14 @@ const ProfilePage: React.FC = () => {
   useEffect(() => {
     if (profile) {
       reset({
-        nama: profile.nama || '',
-        singkatan: profile.singkatan || '',
+        nama_instansi: profile.nama_instansi || '',
         visi: profile.visi || '',
         misi: profile.misi || '',
+        sejarah: profile.sejarah || '',
         alamat: profile.alamat || '',
         telepon: profile.telepon || '',
         email: profile.email || '',
         website: profile.website || '',
-        deskripsi: profile.deskripsi || '',
       });
     }
   }, [profile, reset]);
@@ -70,6 +69,7 @@ const ProfilePage: React.FC = () => {
         if (val !== undefined && val !== '') fd.append(key, val);
       });
       if (logoFile) fd.append('logo', logoFile);
+      if (strukturFile) fd.append('struktur_organisasi', strukturFile);
       return profileApi.update(fd);
     },
     onSuccess: () => {
@@ -100,27 +100,12 @@ const ProfilePage: React.FC = () => {
             onChange={setLogoFile}
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Nama Instansi"
-              required
-              placeholder="Badan Pengelolaan Keuangan..."
-              error={errors.nama?.message}
-              {...register('nama')}
-            />
-            <Input
-              label="Singkatan"
-              placeholder="BPKAD"
-              error={errors.singkatan?.message}
-              {...register('singkatan')}
-            />
-          </div>
-
-          <Textarea
-            label="Deskripsi"
-            placeholder="Deskripsi singkat instansi..."
-            rows={3}
-            {...register('deskripsi')}
+          <Input
+            label="Nama Instansi"
+            required
+            placeholder="Badan Pengelolaan Keuangan dan Aset Daerah Donggala"
+            error={errors.nama_instansi?.message}
+            {...register('nama_instansi')}
           />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -137,6 +122,13 @@ const ProfilePage: React.FC = () => {
               {...register('misi')}
             />
           </div>
+
+          <Textarea
+            label="Sejarah"
+            placeholder="Sejarah singkat instansi..."
+            rows={5}
+            {...register('sejarah')}
+          />
 
           <div className="border-t border-gray-100 pt-4">
             <h4 className="text-sm font-medium text-gray-700 mb-4">
@@ -169,6 +161,18 @@ const ProfilePage: React.FC = () => {
               placeholder="https://bpkad.donggalakab.go.id"
               className="mt-4"
               {...register('website')}
+            />
+          </div>
+
+          {/* Struktur Organisasi */}
+          <div className="border-t border-gray-100 pt-4">
+            <h4 className="text-sm font-medium text-gray-700 mb-4">
+              Struktur Organisasi
+            </h4>
+            <ImageUpload
+              label="Gambar Struktur Organisasi"
+              currentImage={getImageUrl(profile?.struktur_organisasi) || undefined}
+              onChange={setStrukturFile}
             />
           </div>
 

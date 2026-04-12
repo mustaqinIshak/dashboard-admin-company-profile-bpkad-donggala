@@ -259,10 +259,10 @@ const KontakPage: React.FC = () => {
                 <p className="label">Email</p>
                 <p className="text-gray-800">{viewItem.email}</p>
               </div>
-              {viewItem.telepon && (
+              {viewItem.no_telepon && (
                 <div>
                   <p className="label">Telepon</p>
-                  <p className="text-gray-800">{viewItem.telepon}</p>
+                  <p className="text-gray-800">{viewItem.no_telepon}</p>
                 </div>
               )}
               <div>

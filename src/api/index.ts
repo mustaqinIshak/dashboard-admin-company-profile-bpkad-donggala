@@ -44,10 +44,8 @@ export const organisasiApi = {
   getAll: () => api.get('/organisasi'),
   getByBidang: (bidang: string) => api.get(`/organisasi/bidang/${bidang}`),
   getJabatan: (id: number) => api.get(`/organisasi/${id}/jabatan`),
-  updateBidang: (bidang: string, data: FormData) =>
-    api.put(`/admin/organisasi/bidang/${bidang}`, data, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }),
+  updateBidang: (bidang: string, data: { deskripsi?: string }) =>
+    api.put(`/admin/organisasi/bidang/${bidang}`, data),
   addJabatan: (bidangId: number, data: FormData) =>
     api.post(`/admin/organisasi/${bidangId}/jabatan`, data, {
       headers: { 'Content-Type': 'multipart/form-data' },

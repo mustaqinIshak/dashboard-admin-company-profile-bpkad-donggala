@@ -18,9 +18,10 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import EmptyState from '../../components/ui/EmptyState';
 
 const schema = z.object({
-  judul: z.string().min(1, 'Judul wajib diisi'),
-  subjudul: z.string().optional(),
-  urutan: z.coerce.number().min(1),
+  judul: z.string().optional(),
+  deskripsi: z.string().optional(),
+  urutan: z.coerce.number().min(0).optional(),
+  is_active: z.boolean().default(true),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -49,14 +50,14 @@ const JumbotronPage: React.FC = () => {
 
   const openAdd = () => {
     setEditItem(null);
-    reset({ judul: '', subjudul: '', urutan: items.length + 1 });
+    reset({ judul: '', deskripsi: '', urutan: items.length + 1, is_active: true });
     setImageFile(null);
     setModalOpen(true);
   };
 
   const openEdit = (item: Jumbotron) => {
     setEditItem(item);
-    reset({ judul: item.judul, subjudul: item.subjudul || '', urutan: item.urutan });
+    reset({ judul: item.judul || '', deskripsi: item.deskripsi || '', urutan: item.urutan, is_active: item.is_active });
     setImageFile(null);
     setModalOpen(true);
   };
@@ -134,7 +135,7 @@ const JumbotronPage: React.FC = () => {
                 {item.gambar ? (
                   <img
                     src={getImageUrl(item.gambar) || undefined}
-                    alt={item.judul}
+                    alt={item.judul ?? 'Slide'}
                     className="w-full h-40 object-cover"
                   />
                 ) : (
@@ -147,32 +148,32 @@ const JumbotronPage: React.FC = () => {
                 </div>
                 <div className="absolute top-2 right-2">
                   <span
-                    className={`badge ${item.aktif ? 'badge-green' : 'badge-gray'}`}
+                    className={`badge ${item.is_active ? 'badge-green' : 'badge-gray'}`}
                   >
-                    {item.aktif ? 'Aktif' : 'Nonaktif'}
+                    {item.is_active ? 'Aktif' : 'Nonaktif'}
                   </span>
                 </div>
               </div>
               <div className="p-4">
                 <h4 className="font-semibold text-gray-800 truncate">
-                  {item.judul}
+                  {item.judul || '(Tanpa Judul)'}
                 </h4>
-                {item.subjudul && (
+                {item.deskripsi && (
                   <p className="text-sm text-gray-500 truncate mt-0.5">
-                    {item.subjudul}
+                    {item.deskripsi}
                   </p>
                 )}
                 <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
                   <button
                     onClick={() => toggleMutation.mutate(item.id)}
                     className={`flex items-center gap-1 text-xs px-2 py-1 rounded-md transition-colors ${
-                      item.aktif
+                      item.is_active
                         ? 'text-green-700 bg-green-50 hover:bg-green-100'
                         : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
                     }`}
                   >
                     <Power className="h-3 w-3" />
-                    {item.aktif ? 'Nonaktifkan' : 'Aktifkan'}
+                    {item.is_active ? 'Nonaktifkan' : 'Aktifkan'}
                   </button>
                   <div className="flex items-center gap-1 ml-auto">
                     <button
@@ -213,18 +214,29 @@ const JumbotronPage: React.FC = () => {
           />
           <Input
             label="Judul"
-            required
+            placeholder="Judul slide (opsional)"
             error={errors.judul?.message}
             {...register('judul')}
           />
-          <Textarea label="Sub Judul" rows={2} {...register('subjudul')} />
+          <Textarea label="Deskripsi" rows={2} placeholder="Deskripsi slide (opsional)" {...register('deskripsi')} />
           <Input
             label="Urutan"
             type="number"
-            min={1}
+            min={0}
             error={errors.urutan?.message}
             {...register('urutan')}
           />
+          <div className="space-y-1">
+            <label className="label">Status</label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded text-blue-600"
+                {...register('is_active')}
+              />
+              <span className="text-sm text-gray-700">Aktifkan slide</span>
+            </label>
+          </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button
               variant="secondary"

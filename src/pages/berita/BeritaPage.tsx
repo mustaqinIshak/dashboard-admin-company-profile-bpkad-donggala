@@ -20,10 +20,9 @@ import Pagination from '../../components/ui/Pagination';
 
 const schema = z.object({
   judul: z.string().min(1, 'Judul wajib diisi'),
-  ringkasan: z.string().optional(),
-  konten: z.string().min(1, 'Konten wajib diisi'),
+  isi: z.string().min(1, 'Isi berita wajib diisi'),
   kategori: z.string().optional(),
-  diterbitkan: z.boolean(),
+  is_published: z.boolean(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -63,7 +62,7 @@ const BeritaPage: React.FC = () => {
 
   const openAdd = () => {
     setEditItem(null);
-    reset({ judul: '', ringkasan: '', konten: '', kategori: '', diterbitkan: true });
+    reset({ judul: '', isi: '', kategori: '', is_published: true });
     setImageFile(null);
     setModalOpen(true);
   };
@@ -72,10 +71,9 @@ const BeritaPage: React.FC = () => {
     setEditItem(item);
     reset({
       judul: item.judul,
-      ringkasan: item.ringkasan || '',
-      konten: item.konten,
+      isi: item.isi,
       kategori: item.kategori || '',
-      diterbitkan: item.diterbitkan,
+      is_published: item.is_published,
     });
     setImageFile(null);
     setModalOpen(true);
@@ -188,8 +186,8 @@ const BeritaPage: React.FC = () => {
                       {formatDate(item.created_at)}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`badge ${item.diterbitkan ? 'badge-green' : 'badge-gray'}`}>
-                        {item.diterbitkan ? 'Diterbitkan' : 'Draft'}
+                      <span className={`badge ${item.is_published ? 'badge-green' : 'badge-gray'}`}>
+                        {item.is_published ? 'Diterbitkan' : 'Draft'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -257,25 +255,19 @@ const BeritaPage: React.FC = () => {
                 <input
                   type="checkbox"
                   className="h-4 w-4 rounded text-blue-600"
-                  {...register('diterbitkan')}
+                  {...register('is_published')}
                 />
                 <span className="text-sm text-gray-700">Terbitkan sekarang</span>
               </label>
             </div>
           </div>
           <Textarea
-            label="Ringkasan"
-            placeholder="Ringkasan singkat berita..."
-            rows={2}
-            {...register('ringkasan')}
-          />
-          <Textarea
-            label="Konten Berita"
+            label="Isi Berita"
             required
-            error={errors.konten?.message}
+            error={errors.isi?.message}
             rows={8}
-            placeholder="Tulis konten berita di sini..."
-            {...register('konten')}
+            placeholder="Tulis isi berita di sini..."
+            {...register('isi')}
           />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" type="button" onClick={() => setModalOpen(false)}>

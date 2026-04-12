@@ -19,44 +19,44 @@ export interface AuthResponse {
 // Profile Types
 export interface Profile {
   id: number;
-  nama: string;
-  singkatan?: string;
+  nama_instansi: string;
   visi?: string;
   misi?: string;
+  sejarah?: string;
   alamat?: string;
   telepon?: string;
   email?: string;
   website?: string;
   logo?: string;
-  deskripsi?: string;
+  struktur_organisasi?: string;
 }
 
 // Jumbotron Types
 export interface Jumbotron {
   id: number;
-  judul: string;
-  subjudul?: string;
+  judul?: string;
+  deskripsi?: string;
   gambar?: string;
   urutan: number;
-  aktif: boolean;
+  is_active: boolean;
 }
 
 // Organisasi Types
-export interface Bidang {
+export interface Organisasi {
   id: number;
-  nama: string;
-  kode: string;
+  bidang: string;
   deskripsi?: string;
-  foto?: string;
+  jabatans: Jabatan[];
 }
 
 export interface Jabatan {
   id: number;
-  nama: string;
-  nama_pejabat?: string;
+  organisasi_id: number;
+  nama_jabatan: string;
+  nama_pejabat: string;
+  nip?: string;
   foto?: string;
-  urutan: number;
-  bidang_id: number;
+  tugas_fungsi?: string[];
 }
 
 // Berita Types
@@ -64,14 +64,12 @@ export interface Berita {
   id: number;
   judul: string;
   slug: string;
-  konten: string;
-  ringkasan?: string;
+  isi: string;
   gambar?: string;
   kategori?: string;
-  diterbitkan: boolean;
+  is_published: boolean;
   created_at: string;
   updated_at: string;
-  penulis?: string;
 }
 
 export interface BeritaPagination {
@@ -85,12 +83,11 @@ export interface BeritaPagination {
 // Layanan Types
 export interface Layanan {
   id: number;
-  nama: string;
+  tipe: string;
+  judul: string;
   deskripsi?: string;
-  ikon?: string;
-  gambar?: string;
-  urutan: number;
-  aktif: boolean;
+  tahun_apbd: number;
+  file_dokumen?: string;
 }
 
 // Kontak Types
@@ -98,8 +95,8 @@ export interface Kontak {
   id: number;
   nama: string;
   email: string;
-  telepon?: string;
-  subjek?: string;
+  no_telepon?: string;
+  subjek: string;
   pesan: string;
   status: 'belum_dibaca' | 'sudah_dibaca' | 'diproses';
   created_at: string;
