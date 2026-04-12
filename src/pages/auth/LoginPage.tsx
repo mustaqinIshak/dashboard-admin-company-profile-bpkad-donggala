@@ -7,6 +7,7 @@ import { Lock, Mail, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { authApi } from '../../api';
 import { useAuthStore } from '../../stores/authStore';
+import { extractApiData } from '../../utils';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 
@@ -37,11 +38,19 @@ const LoginPage: React.FC = () => {
   const onSubmit = async (data: FormData) => {
     try {
       const res = await authApi.login(data);
-      const { token, user } = res.data;
+      const loginData = extractApiData(res);
+      const token = loginData?.token;
+      // Backend returns 'admin' key, not 'user'
+      const user = loginData?.admin || loginData?.user;
+      if (!token || !user) {
+        toast.error('Login gagal: respons tidak valid');
+        return;
+      }
       setAuth(token, user);
       toast.success(`Selamat datang, ${user.name}!`);
       navigate('/');
     } catch (error: unknown) {
+      if (useAuthStore.getState().isAuthenticated) return;
       const err = error as { response?: { data?: { message?: string } } };
       const msg = err.response?.data?.message || 'Login gagal, cek email & password';
       toast.error(msg);

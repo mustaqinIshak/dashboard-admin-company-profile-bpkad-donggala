@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { toast } from 'sonner';
+import { useAuthStore } from '../stores/authStore';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
@@ -12,7 +13,10 @@ const api = axios.create({
 // Request interceptor - attach token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('auth_token');
+    // Don't attach token to login requests — old/expired tokens can cause 401
+    if (config.url?.includes('/auth/login')) return config;
+
+    const token = useAuthStore.getState().token || localStorage.getItem('auth_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -28,10 +32,9 @@ api.interceptors.response.use(
     const message = error.response?.data?.message || 'Terjadi kesalahan';
 
     if (error.response?.status === 401) {
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_user');
-      window.location.href = '/login';
-      toast.error('Sesi telah berakhir, silakan login kembali');
+      // Do NOT auto-logout on 401.
+      // User stays logged in until they manually logout or token expires.
+      // Let the caller (React Query / component) handle the error.
     } else if (error.response?.status === 403) {
       toast.error('Anda tidak memiliki akses ke halaman ini');
     } else if (error.response?.status === 422) {

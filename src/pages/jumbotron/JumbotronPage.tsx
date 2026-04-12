@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, Power, GripVertical } from 'lucide-react';
 import { useState } from 'react';
 import { jumbotronApi } from '../../api';
-import { getImageUrl, getValidationErrors } from '../../utils';
+import { getImageUrl, getValidationErrors, extractItems } from '../../utils';
 import type { Jumbotron } from '../../types';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
@@ -38,7 +38,7 @@ const JumbotronPage: React.FC = () => {
     queryFn: () => jumbotronApi.getAll(),
   });
 
-  const items: Jumbotron[] = data?.data?.data || data?.data || [];
+  const items: Jumbotron[] = extractItems<Jumbotron>(data);
 
   const {
     register,

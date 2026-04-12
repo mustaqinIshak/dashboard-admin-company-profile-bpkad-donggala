@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, Search, FileText, Download } from 'lucide-react';
 import { useState } from 'react';
 import { layananApi } from '../../api';
-import { getValidationErrors, truncate } from '../../utils';
+import { getValidationErrors, truncate, extractItems } from '../../utils';
 import type { Layanan } from '../../types';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
@@ -51,7 +51,7 @@ const LayananPage: React.FC = () => {
     queryFn: () => layananApi.getAll(),
   });
 
-  const items: Layanan[] = data?.data?.data || data?.data || [];
+  const items: Layanan[] = extractItems<Layanan>(data);
 
   const filtered = items.filter(
     (item) =>

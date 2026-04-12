@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, Search } from 'lucide-react';
 import { useState } from 'react';
 import { beritaApi } from '../../api';
-import { getImageUrl, getValidationErrors, formatDate, truncate } from '../../utils';
+import { getImageUrl, getValidationErrors, formatDate, truncate, extractItems, extractPagination } from '../../utils';
 import type { Berita } from '../../types';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
@@ -41,9 +41,8 @@ const BeritaPage: React.FC = () => {
     queryFn: () => beritaApi.getAll(page),
   });
 
-  const items: Berita[] = data?.data?.data || [];
-  const lastPage = data?.data?.last_page || 1;
-  const total = data?.data?.total || 0;
+  const items: Berita[] = extractItems<Berita>(data);
+  const { lastPage, total } = extractPagination(data);
 
   const filtered = items.filter(
     (item) =>

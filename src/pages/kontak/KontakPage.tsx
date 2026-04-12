@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { kontakApi } from '../../api';
-import { formatDateTime, truncate } from '../../utils';
+import { formatDateTime, truncate, extractItems } from '../../utils';
 import type { Kontak } from '../../types';
 import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -34,7 +34,7 @@ const KontakPage: React.FC = () => {
     queryFn: () => kontakApi.getAll(),
   });
 
-  const items: Kontak[] = data?.data?.data || data?.data || [];
+  const items: Kontak[] = extractItems<Kontak>(data);
 
   const filtered = items.filter((item) => {
     const matchSearch =

@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { organisasiApi } from '../../api';
-import { getImageUrl, getValidationErrors } from '../../utils';
+import { getImageUrl, getValidationErrors, extractItems } from '../../utils';
 import type { Jabatan, Organisasi } from '../../types';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
@@ -60,7 +60,7 @@ const OrganisasiPage: React.FC = () => {
     enabled: !!bidang?.id,
   });
 
-  const jabatanList: Jabatan[] = jabatanData?.data?.data || jabatanData?.data || [];
+  const jabatanList: Jabatan[] = extractItems<Jabatan>(jabatanData);
 
   const bidangForm = useForm<BidangFormData>({ resolver: zodResolver(bidangSchema) });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -13,7 +13,7 @@ import { Link } from 'react-router-dom';
 import { beritaApi, kontakApi, jumbotronApi, layananApi } from '../../api';
 import { useAuthStore } from '../../stores/authStore';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
-import { formatDateTime } from '../../utils';
+import { formatDateTime, extractItems, extractPagination } from '../../utils';
 
 const StatCard: React.FC<{
   label: string;
@@ -45,35 +45,38 @@ const DashboardPage: React.FC = () => {
   const { data: beritaData, isLoading: beritaLoading } = useQuery({
     queryKey: ['berita'],
     queryFn: () => beritaApi.getAll(1),
+    retry: false,
   });
 
   const { data: kontakData, isLoading: kontakLoading } = useQuery({
     queryKey: ['kontak'],
     queryFn: () => kontakApi.getAll(),
+    retry: false,
   });
 
   const { data: jumbotronData, isLoading: jumbotronLoading } = useQuery({
     queryKey: ['jumbotron'],
     queryFn: () => jumbotronApi.getAll(),
+    retry: false,
   });
 
   const { data: layananData, isLoading: layananLoading } = useQuery({
     queryKey: ['layanan'],
     queryFn: () => layananApi.getAll(),
+    retry: false,
   });
 
   const isLoading =
     beritaLoading || kontakLoading || jumbotronLoading || layananLoading;
 
-  const berita = beritaData?.data?.data || beritaData?.data || [];
-  const kontak = kontakData?.data?.data || kontakData?.data || [];
-  const jumbotron = jumbotronData?.data?.data || jumbotronData?.data || [];
-  const layanan = layananData?.data?.data || layananData?.data || [];
+  const berita = extractItems(beritaData);
+  const beritaTotal = extractPagination(beritaData).total;
+  const kontak = extractItems(kontakData);
+  const jumbotron = extractItems(jumbotronData);
+  const layanan = extractItems(layananData);
 
-  const unreadKontak = Array.isArray(kontak)
-    ? kontak.filter((k: { status: string }) => k.status === 'belum_dibaca').length
-    : 0;
-  const recentKontak = Array.isArray(kontak) ? kontak.slice(0, 5) : [];
+  const unreadKontak = kontak.filter((k: { status: string }) => k.status === 'belum_dibaca').length;
+  const recentKontak = kontak.slice(0, 5);
 
   return (
     <div className="space-y-6">
@@ -106,23 +109,21 @@ const DashboardPage: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             label="Total Berita"
-            value={
-              beritaData?.data?.total || (Array.isArray(berita) ? berita.length : 0)
-            }
+            value={beritaTotal || berita.length}
             icon={<Newspaper className="h-5 w-5 text-blue-600" />}
             color="bg-blue-50"
             link="/berita"
           />
           <StatCard
             label="Layanan"
-            value={Array.isArray(layanan) ? layanan.length : 0}
+            value={layanan.length}
             icon={<Briefcase className="h-5 w-5 text-green-600" />}
             color="bg-green-50"
             link="/layanan"
           />
           <StatCard
             label="Slide Jumbotron"
-            value={Array.isArray(jumbotron) ? jumbotron.length : 0}
+            value={jumbotron.length}
             icon={<Image className="h-5 w-5 text-purple-600" />}
             color="bg-purple-50"
             link="/jumbotron"
