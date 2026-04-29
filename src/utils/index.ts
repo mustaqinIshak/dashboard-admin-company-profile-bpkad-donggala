@@ -23,7 +23,15 @@ export const formatDateTime = (dateStr: string) => {
 export const getImageUrl = (path?: string) => {
   if (!path) return null;
   if (path.startsWith('http')) return path;
-  return `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000'}/${path}`;
+  
+  const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000';
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  
+  if (!cleanPath.startsWith('storage/')) {
+    return `${baseUrl}/storage/${cleanPath}`;
+  }
+  
+  return `${baseUrl}/${cleanPath}`;
 };
 
 export const truncate = (str: string, n: number) => {

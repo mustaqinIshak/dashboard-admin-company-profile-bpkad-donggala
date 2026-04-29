@@ -81,7 +81,13 @@ const BeritaPage: React.FC = () => {
   const saveMutation = useMutation({
     mutationFn: (formData: FormData) => {
       const fd = new FormData();
-      Object.entries(formData).forEach(([k, v]) => fd.append(k, String(v)));
+      Object.entries(formData).forEach(([k, v]) => {
+        if (typeof v === 'boolean') {
+          fd.append(k, v ? '1' : '0');
+        } else {
+          fd.append(k, String(v));
+        }
+      });
       if (imageFile) fd.append('gambar', imageFile);
       if (editItem) return beritaApi.update(editItem.id, fd);
       return beritaApi.create(fd);

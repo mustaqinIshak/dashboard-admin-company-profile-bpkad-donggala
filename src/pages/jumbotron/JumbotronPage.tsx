@@ -65,7 +65,13 @@ const JumbotronPage: React.FC = () => {
   const saveMutation = useMutation({
     mutationFn: async (data: FormData) => {
       const fd = new FormData();
-      Object.entries(data).forEach(([k, v]) => fd.append(k, String(v)));
+      Object.entries(data).forEach(([k, v]) => {
+        if (typeof v === 'boolean') {
+          fd.append(k, v ? '1' : '0');
+        } else {
+          fd.append(k, String(v));
+        }
+      });
       if (imageFile) fd.append('gambar', imageFile);
       if (editItem) {
         return jumbotronApi.update(editItem.id, fd);
