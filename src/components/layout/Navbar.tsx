@@ -61,7 +61,7 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick, title }) => {
               <p className="text-sm font-medium leading-tight">
                 {user?.name || 'Admin'}
               </p>
-              <p className="text-xs text-gray-500">{user?.role || 'Admin'}</p>
+              <p className="text-xs text-gray-500">{user?.roles?.[0]?.display_name || 'Admin'}</p>
             </div>
             <ChevronDown className="h-4 w-4 text-gray-400" />
           </button>

@@ -60,7 +60,7 @@ const AkunPage: React.FC = () => {
           <div>
             <h3 className="font-semibold text-gray-800 text-lg">{user?.name}</h3>
             <p className="text-gray-500">{user?.email}</p>
-            <span className="badge badge-blue mt-1">{user?.role}</span>
+            <span className="badge badge-blue mt-1">{user?.roles?.[0]?.display_name}</span>
           </div>
         </div>
         <div className="border-t border-gray-100 pt-4">
@@ -75,7 +75,7 @@ const AkunPage: React.FC = () => {
             </div>
             <div>
               <p className="text-gray-500 mb-0.5">Role</p>
-              <p className="font-medium text-gray-800 capitalize">{user?.role}</p>
+              <p className="font-medium text-gray-800 capitalize">{user?.roles?.[0]?.display_name}</p>
             </div>
             <div>
               <p className="text-gray-500 mb-0.5">ID Admin</p>

@@ -9,11 +9,13 @@ interface AuthState {
   setAuth: (token: string, user: AuthUser) => void;
   clearAuth: () => void;
   setUser: (user: AuthUser) => void;
+  hasRole: (role: string) => boolean;
+  hasAnyRole: (roles: string[]) => boolean;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       token: null,
       user: null,
       isAuthenticated: false,
@@ -26,6 +28,8 @@ export const useAuthStore = create<AuthState>()(
         set({ token: null, user: null, isAuthenticated: false });
       },
       setUser: (user) => set({ user }),
+      hasRole: (role) => get().user?.roles?.some(r => r.name === role) ?? false,
+      hasAnyRole: (roles) => get().user?.roles?.some(r => roles.includes(r.name)) ?? false,
     }),
     {
       name: 'auth-storage',

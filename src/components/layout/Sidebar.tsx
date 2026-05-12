@@ -9,8 +9,13 @@ import {
   MessageSquare,
   Settings,
   X,
+  UserCheck,
+  MailOpen,
+  Send,
+  UserCog,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useAuthStore } from '../../stores/authStore';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -27,23 +32,50 @@ const navItems = [
   {
     group: 'Konten',
     items: [
-      { to: '/profile', label: 'Profil Instansi', icon: Building2 },
-      { to: '/jumbotron', label: 'Jumbotron', icon: Image },
-      { to: '/organisasi', label: 'Organisasi', icon: Users },
-      { to: '/berita', label: 'Berita', icon: Newspaper },
-      { to: '/layanan', label: 'Layanan', icon: Briefcase },
+      { to: '/profile', label: 'Profil Instansi', icon: Building2, roles: ['admin', 'super_admin'] },
+      { to: '/jumbotron', label: 'Jumbotron', icon: Image, roles: ['admin', 'super_admin'] },
+      { to: '/organisasi', label: 'Organisasi', icon: Users, roles: ['admin', 'super_admin'] },
+      { to: '/berita', label: 'Berita', icon: Newspaper, roles: ['admin', 'super_admin'] },
+      { to: '/layanan', label: 'Layanan', icon: Briefcase, roles: ['admin', 'super_admin'] },
+    ],
+  },
+  {
+    group: 'Loby',
+    items: [
+      { to: '/tamu', label: 'Tamu Loby', icon: UserCheck, roles: ['resepsionis', 'admin', 'super_admin'] },
+    ],
+  },
+  {
+    group: 'Persuratan',
+    items: [
+      { to: '/surat-masuk', label: 'Surat Masuk', icon: MailOpen, roles: ['petugas_surat', 'pimpinan', 'admin', 'super_admin'] },
+      { to: '/surat-keluar', label: 'Surat Keluar', icon: Send, roles: ['petugas_surat', 'pimpinan', 'admin', 'super_admin'] },
+    ],
+  },
+  {
+    group: 'Sistem',
+    items: [
+      { to: '/admin-management', label: 'Kelola Admin', icon: UserCog, roles: ['super_admin'] },
     ],
   },
   {
     group: 'Manajemen',
     items: [
-      { to: '/kontak', label: 'Pesan Masuk', icon: MessageSquare },
+      { to: '/kontak', label: 'Pesan Masuk', icon: MessageSquare, roles: ['resepsionis', 'admin', 'super_admin'] },
       { to: '/akun', label: 'Akun Saya', icon: Settings },
     ],
   },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
+  const { hasAnyRole } = useAuthStore();
+  
+  // Filter nav groups and items based on roles
+  const filteredNavItems = navItems.map(group => ({
+    ...group,
+    items: group.items.filter(item => !item.roles || hasAnyRole(item.roles))
+  })).filter(group => group.items.length > 0);
+
   return (
     <>
       {/* Overlay for mobile */}
@@ -78,7 +110,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-4 space-y-6">
-          {navItems.map((group) => (
+          {filteredNavItems.map((group) => (
             <div key={group.group}>
               <p className="text-blue-400 text-xs font-semibold uppercase tracking-wider mb-2 px-3">
                 {group.group}
