@@ -15,13 +15,33 @@ import {
   UserCog,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
-import { useAuthStore } from '../../stores/authStore';
+import { usePermission } from '../../hooks/usePermission';
+import {
+  MANAGE_PROFILE,
+  MANAGE_JUMBOTRON,
+  MANAGE_ORGANISASI,
+  MANAGE_BERITA,
+  MANAGE_LAYANAN,
+  VIEW_KONTAK,
+  VIEW_TAMU,
+  VIEW_SURAT_MASUK,
+  VIEW_SURAT_KELUAR,
+  MANAGE_ADMIN_USERS,
+} from '../../lib/permissions';
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+/**
+ * Setiap nav item dapat memiliki:
+ *  - `permissions`: tampilkan jika user punya SALAH SATU dari permission ini (OR)
+ *  - Tanpa `permissions`: selalu tampil (misal Dashboard, Akun Saya)
+ *
+ * Menambahkan menu baru cukup tambahkan entri di sini dengan permission
+ * yang sesuai — tidak perlu mengubah kode lain.
+ */
 const navItems = [
   {
     group: 'Utama',
@@ -32,48 +52,50 @@ const navItems = [
   {
     group: 'Konten',
     items: [
-      { to: '/profile', label: 'Profil Instansi', icon: Building2, roles: ['admin', 'super_admin'] },
-      { to: '/jumbotron', label: 'Jumbotron', icon: Image, roles: ['admin', 'super_admin'] },
-      { to: '/organisasi', label: 'Organisasi', icon: Users, roles: ['admin', 'super_admin'] },
-      { to: '/berita', label: 'Berita', icon: Newspaper, roles: ['admin', 'super_admin'] },
-      { to: '/layanan', label: 'Layanan', icon: Briefcase, roles: ['admin', 'super_admin'] },
+      { to: '/profile',    label: 'Profil Instansi', icon: Building2, permissions: [MANAGE_PROFILE] },
+      { to: '/jumbotron',  label: 'Jumbotron',       icon: Image,     permissions: [MANAGE_JUMBOTRON] },
+      { to: '/organisasi', label: 'Organisasi',       icon: Users,     permissions: [MANAGE_ORGANISASI] },
+      { to: '/berita',     label: 'Berita',           icon: Newspaper, permissions: [MANAGE_BERITA] },
+      { to: '/layanan',    label: 'Layanan',          icon: Briefcase, permissions: [MANAGE_LAYANAN] },
     ],
   },
   {
     group: 'Loby',
     items: [
-      { to: '/tamu', label: 'Tamu Loby', icon: UserCheck, roles: ['resepsionis', 'admin', 'super_admin'] },
+      { to: '/tamu', label: 'Tamu Loby', icon: UserCheck, permissions: [VIEW_TAMU] },
     ],
   },
   {
     group: 'Persuratan',
     items: [
-      { to: '/surat-masuk', label: 'Surat Masuk', icon: MailOpen, roles: ['petugas_surat', 'pimpinan', 'admin', 'super_admin'] },
-      { to: '/surat-keluar', label: 'Surat Keluar', icon: Send, roles: ['petugas_surat', 'pimpinan', 'admin', 'super_admin'] },
+      { to: '/surat-masuk',  label: 'Surat Masuk',  icon: MailOpen, permissions: [VIEW_SURAT_MASUK] },
+      { to: '/surat-keluar', label: 'Surat Keluar', icon: Send,     permissions: [VIEW_SURAT_KELUAR] },
     ],
   },
   {
     group: 'Sistem',
     items: [
-      { to: '/admin-management', label: 'Kelola Admin', icon: UserCog, roles: ['super_admin'] },
+      { to: '/admin-management', label: 'Kelola Admin', icon: UserCog, permissions: [MANAGE_ADMIN_USERS] },
     ],
   },
   {
     group: 'Manajemen',
     items: [
-      { to: '/kontak', label: 'Pesan Masuk', icon: MessageSquare, roles: ['resepsionis', 'admin', 'super_admin'] },
-      { to: '/akun', label: 'Akun Saya', icon: Settings },
+      { to: '/kontak',  label: 'Pesan Masuk', icon: MessageSquare, permissions: [VIEW_KONTAK] },
+      { to: '/akun',    label: 'Akun Saya',   icon: Settings },
     ],
   },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { hasAnyRole } = useAuthStore();
+  const { canAny } = usePermission();
   
-  // Filter nav groups and items based on roles
+  // Filter nav groups dan items berdasarkan permissions (PBAC)
   const filteredNavItems = navItems.map(group => ({
     ...group,
-    items: group.items.filter(item => !item.roles || hasAnyRole(item.roles))
+    items: group.items.filter(item =>
+      !item.permissions || canAny(item.permissions)
+    ),
   })).filter(group => group.items.length > 0);
 
   return (

@@ -4,7 +4,7 @@ import { Toaster } from 'sonner';
 
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
-import RoleProtectedRoute from './components/layout/RoleProtectedRoute';
+import PermissionProtectedRoute from './components/layout/PermissionProtectedRoute';
 import ForbiddenPage from './pages/ForbiddenPage';
 import LoginPage from './pages/auth/LoginPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
@@ -26,6 +26,20 @@ import SuratKeluarFormPage from './pages/surat-keluar/SuratKeluarFormPage';
 import SuratKeluarDetailPage from './pages/surat-keluar/SuratKeluarDetailPage';
 import AdminManagementPage from './pages/admin-management/AdminManagementPage';
 
+// Permission constants
+import {
+  MANAGE_PROFILE,
+  MANAGE_JUMBOTRON,
+  MANAGE_ORGANISASI,
+  MANAGE_BERITA,
+  MANAGE_LAYANAN,
+  VIEW_KONTAK,
+  VIEW_TAMU,
+  VIEW_SURAT_MASUK,
+  VIEW_SURAT_KELUAR,
+  MANAGE_ADMIN_USERS,
+} from './lib/permissions';
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -45,31 +59,51 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
               <Route path="/" element={<DashboardPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/jumbotron" element={<JumbotronPage />} />
-              <Route path="/organisasi" element={<OrganisasiPage />} />
-              <Route path="/berita" element={<BeritaPage />} />
-              <Route path="/layanan" element={<LayananPage />} />
-              <Route path="/kontak" element={<KontakPage />} />
               <Route path="/akun" element={<AkunPage />} />
 
-              {/* Role Protected Routes */}
-              <Route element={<RoleProtectedRoute roles={['resepsionis', 'admin', 'super_admin']} />}>
+              {/* ── Konten (permission-based) ─────────────────────────── */}
+              <Route element={<PermissionProtectedRoute permission={MANAGE_PROFILE} />}>
+                <Route path="/profile" element={<ProfilePage />} />
+              </Route>
+              <Route element={<PermissionProtectedRoute permission={MANAGE_JUMBOTRON} />}>
+                <Route path="/jumbotron" element={<JumbotronPage />} />
+              </Route>
+              <Route element={<PermissionProtectedRoute permission={MANAGE_ORGANISASI} />}>
+                <Route path="/organisasi" element={<OrganisasiPage />} />
+              </Route>
+              <Route element={<PermissionProtectedRoute permission={MANAGE_BERITA} />}>
+                <Route path="/berita" element={<BeritaPage />} />
+              </Route>
+              <Route element={<PermissionProtectedRoute permission={MANAGE_LAYANAN} />}>
+                <Route path="/layanan" element={<LayananPage />} />
+              </Route>
+
+              {/* ── Kontak ───────────────────────────────────────────── */}
+              <Route element={<PermissionProtectedRoute permission={VIEW_KONTAK} />}>
+                <Route path="/kontak" element={<KontakPage />} />
+              </Route>
+
+              {/* ── Tamu Loby ─────────────────────────────────────────── */}
+              <Route element={<PermissionProtectedRoute permission={VIEW_TAMU} />}>
                 <Route path="/tamu" element={<TamuPage />} />
               </Route>
 
-              <Route element={<RoleProtectedRoute roles={['petugas_surat', 'pimpinan', 'admin', 'super_admin']} />}>
+              {/* ── Persuratan ────────────────────────────────────────── */}
+              <Route element={<PermissionProtectedRoute permission={VIEW_SURAT_MASUK} />}>
                 <Route path="/surat-masuk" element={<SuratMasukPage />} />
                 <Route path="/surat-masuk/tambah" element={<SuratMasukFormPage />} />
                 <Route path="/surat-masuk/:id" element={<SuratMasukDetailPage />} />
                 <Route path="/surat-masuk/:id/edit" element={<SuratMasukFormPage />} />
+              </Route>
+              <Route element={<PermissionProtectedRoute permission={VIEW_SURAT_KELUAR} />}>
                 <Route path="/surat-keluar" element={<SuratKeluarPage />} />
                 <Route path="/surat-keluar/tambah" element={<SuratKeluarFormPage />} />
                 <Route path="/surat-keluar/:id" element={<SuratKeluarDetailPage />} />
                 <Route path="/surat-keluar/:id/edit" element={<SuratKeluarFormPage />} />
               </Route>
 
-              <Route element={<RoleProtectedRoute roles={['super_admin']} />}>
+              {/* ── Admin Management ──────────────────────────────────── */}
+              <Route element={<PermissionProtectedRoute permission={MANAGE_ADMIN_USERS} />}>
                 <Route path="/admin-management" element={<AdminManagementPage />} />
               </Route>
             </Route>

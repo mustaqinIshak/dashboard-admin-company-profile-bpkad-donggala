@@ -153,11 +153,12 @@ export const suratKeluarApi = {
 };
 
 export const roleManagementApi = {
+  getPermissions: () => api.get('/admin/permissions'),
   getAll: () => api.get('/admin/roles'),
-  create: (data: { name: string; display_name: string; description?: string }) =>
+  create: (data: { name: string; display_name: string; description?: string; permissions?: number[] }) =>
     api.post('/admin/roles', data),
   getById: (id: number) => api.get(`/admin/roles/${id}`),
-  update: (id: number, data: { display_name: string; description?: string }) =>
+  update: (id: number, data: { display_name?: string; description?: string; permissions?: number[] }) =>
     api.put(`/admin/roles/${id}`, data),
   delete: (id: number) => api.delete(`/admin/roles/${id}`),
 };

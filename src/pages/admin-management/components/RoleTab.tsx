@@ -18,6 +18,11 @@ const RoleTab: React.FC = () => {
     queryFn: () => roleManagementApi.getAll().then((res) => res.data.data),
   });
 
+  const { data: permissionsData } = useQuery({
+    queryKey: ['permissions-list'],
+    queryFn: () => roleManagementApi.getPermissions().then((res) => res.data.data),
+  });
+
   // Modal & Form State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -27,12 +32,13 @@ const RoleTab: React.FC = () => {
     name: '',
     display_name: '',
     description: '',
+    permissions: [] as number[],
   });
 
   const openAddModal = () => {
     setIsEditMode(false);
     setSelectedRoleId(null);
-    setFormData({ name: '', display_name: '', description: '' });
+    setFormData({ name: '', display_name: '', description: '', permissions: [] });
     setIsModalOpen(true);
   };
 
@@ -43,6 +49,7 @@ const RoleTab: React.FC = () => {
       name: role.name,
       display_name: role.display_name,
       description: role.description || '',
+      permissions: role.permissions?.map((p: any) => p.id) || [],
     });
     setIsModalOpen(true);
   };
@@ -71,7 +78,7 @@ const RoleTab: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isEditMode && selectedRoleId) {
-      updateMutation.mutate({ id: selectedRoleId, data: { display_name: formData.display_name, description: formData.description } });
+      updateMutation.mutate({ id: selectedRoleId, data: { display_name: formData.display_name, description: formData.description, permissions: formData.permissions } });
     } else {
       createMutation.mutate(formData);
     }
@@ -94,6 +101,15 @@ const RoleTab: React.FC = () => {
   const handleDelete = (id: number) => {
     setIdToDelete(id);
     setDeleteConfirmOpen(true);
+  };
+
+  const handlePermissionToggle = (permId: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      permissions: prev.permissions.includes(permId)
+        ? prev.permissions.filter((id) => id !== permId)
+        : [...prev.permissions, permId],
+    }));
   };
 
   return (
@@ -181,6 +197,31 @@ const RoleTab: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Penjelasan hak akses role ini"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Permissions</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[300px] overflow-y-auto border border-gray-200 p-3 rounded-md bg-gray-50">
+              {permissionsData?.map((perm: any) => (
+                <label key={perm.id} className="flex items-center space-x-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={formData.permissions.includes(perm.id)}
+                    onChange={() => handlePermissionToggle(perm.id)}
+                    className="rounded text-blue-600 focus:ring-blue-500"
+                  />
+                  <span>
+                    <strong>{perm.name}</strong> 
+                    <span className="text-gray-500 text-xs ml-1 block">{perm.description}</span>
+                  </span>
+                </label>
+              ))}
+              {(!permissionsData || permissionsData.length === 0) && (
+                <div className="text-sm text-gray-500 col-span-full text-center py-2">
+                  Tidak ada permission yang tersedia
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">

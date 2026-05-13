@@ -4,12 +4,20 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface Permission {
+  id: number;
+  name: string;
+  display_name?: string; // Some generic PBAC might have display_name. The backend model currently has name, description. Let's just use description if needed. Or just name.
+  description?: string;
+}
+
 export interface Role {
   id: number;
   name: string;
   display_name: string;
   description?: string;
   admins_count?: number;
+  permissions?: Permission[];
 }
 
 export interface AuthUser {
@@ -17,6 +25,12 @@ export interface AuthUser {
   name: string;
   email: string;
   roles: Role[];
+  /**
+   * Daftar permission PBAC yang dimiliki user ini.
+   * Dikembalikan oleh backend via /auth/me dan /auth/login.
+   * Gunakan ini (bukan roles) untuk keputusan UI di frontend.
+   */
+  permissions: string[];
 }
 
 export interface AdminUser {

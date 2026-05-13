@@ -333,6 +333,16 @@ const TamuPage: React.FC = () => {
               </div>
             </div>
 
+            {selectedTamu.foto_url && (
+              <div className="flex justify-center mb-6 bg-gray-50 rounded-lg border p-2">
+                <img
+                  src={selectedTamu.foto_url}
+                  alt={`Foto ${selectedTamu.nama}`}
+                  className="max-h-64 max-w-full object-contain rounded shadow-sm"
+                />
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-gray-500">Identitas</p>

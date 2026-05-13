@@ -3,7 +3,7 @@
 Stack: **React + Vite + TypeScript + Tailwind CSS + shadcn/ui + Zustand + TanStack Query + Axios**
 
 Dokumen ini adalah panduan implementasi lengkap untuk menambahkan tiga fitur baru:
-1. **RBAC** — Role-based access control (menu & route tersembunyi berdasarkan role)
+1. **PBAC** — Permission-Based Access Control (upgrade dari RBAC — menu, route, dan tombol dikontrol via permission dinamis)
 2. **Manajemen Tamu Loby** — Registrasi, antrian, tracking kunjungan tamu
 3. **Persuratan** — Surat masuk, surat keluar, disposisi (ala Srikandi)
 4. **Admin Management** — Kelola akun admin dan role
@@ -12,7 +12,7 @@ Dokumen ini adalah panduan implementasi lengkap untuk menambahkan tiga fitur bar
 
 ## Catatan Penting: Backend Change
 
-`/auth/login` dan `/auth/me` sekarang mengembalikan field `roles`:
+`/auth/login` dan `/auth/me` sekarang mengembalikan field `roles` **DAN `permissions`**:
 
 ```json
 {
@@ -23,10 +23,18 @@ Dokumen ini adalah panduan implementasi lengkap untuk menambahkan tiga fitur bar
     "email": "admin@bpkad-donggala.go.id",
     "roles": [
       { "id": 1, "name": "super_admin", "display_name": "Super Administrator" }
+    ],
+    "permissions": [
+      "view_dashboard",
+      "manage_profile",
+      "manage_berita",
+      "..."
     ]
   }
 }
 ```
+
+> **Prinsip PBAC**: Frontend **tidak** memeriksa nama role. Frontend hanya memeriksa apakah `permissions[]` mengandung izin yang diperlukan. Role adalah urusan backend — frontend hanya tahu "bisa" atau "tidak bisa".
 
 ---
 
@@ -44,10 +52,95 @@ Dokumen ini adalah panduan implementasi lengkap untuk menambahkan tiga fitur bar
 
 ## Checklist Implementasi
 
+---
+
+### Phase 0 — PBAC: Permission-Based Access Control ✅ SELESAI
+
+Upgrade dari RBAC (cek nama role) ke Database-driven PBAC (cek permission string).
+Ketika role baru ditambahkan, buat mapping permission-nya melalui web interface Admin Management.
+
+#### Backend (`backend-company-profile-bpkad-donggala`)
+
+- [x] Schema Database `permissions`, `roles`, `permission_role`
+- [x] CRUD Endpoints Role dengan array `permissions` (`Route::get('/admin/permissions'`, dst)
+- [x] `app/Models/Admin.php` — Tambah `getPermissions()` yang mengambil relasi DB `roles->permissions`
+- [x] `app/Http/Controllers/Api/AuthController.php` — Include `permissions[]` di response login & me
+
+#### Frontend (`dashboard-admin-company-profile-bpkad-donggala`)
+
+- [x] `src/lib/permissions.ts` — Konstanta semua permission (single source of truth)
+- [x] `src/types/index.ts` — Tambah `permissions: string[]` dan `Permission[]` ke interface `Role` dan `AuthUser`
+- [x] `src/stores/authStore.ts` — Tambah `hasPermission()` dan `hasAnyPermission()`
+- [x] `src/hooks/usePermission.ts` — Hook `usePermission()` dengan `can`, `canAny`, `canAll`
+- [x] `src/components/ui/PermissionGate.tsx` — Komponen deklaratif untuk gate konten
+- [x] `src/components/layout/PermissionProtectedRoute.tsx` — Route guard berbasis permission
+- [x] `src/components/layout/Sidebar.tsx` — Nav items menggunakan `permissions[]`
+- [x] `src/api/index.ts` - Tambah mapping api call untuk fetch dan save mapping permissions ke role.
+- [x] `src/pages/admin-management/components/RoleTab.tsx` - Checkbox list Permissions di modal CRUD Role.
+
+#### Cara menambah role baru di masa depan
+
+1. Tambahkan seeder/migration untuk role baru di backend
+2. Daftarkan permission-nya di `config/permissions.php` → `role_permissions`
+3. ✅ Frontend otomatis menyesuaikan — tidak ada perubahan kode
+
+---
+
+#### Tabel Permission
+
+| Permission | Super Admin | Admin | Resepsionis | Petugas Surat | Pimpinan |
+|---|:-:|:-:|:-:|:-:|:-:|
+| `view_dashboard` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `manage_own_account` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `manage_profile` | ✅ | ✅ | | | |
+| `manage_jumbotron` | ✅ | ✅ | | | |
+| `manage_organisasi` | ✅ | ✅ | | | |
+| `manage_berita` | ✅ | ✅ | | | |
+| `manage_layanan` | ✅ | ✅ | | | |
+| `view_kontak` | ✅ | ✅ | ✅ | | |
+| `manage_kontak` | ✅ | ✅ | ✅ | | |
+| `view_tamu` | ✅ | ✅ | ✅ | | |
+| `manage_tamu` | ✅ | ✅ | ✅ | | |
+| `view_surat_masuk` | ✅ | ✅ | | ✅ | ✅ |
+| `manage_surat_masuk` | ✅ | ✅ | | ✅ | |
+| `view_disposisi` | ✅ | ✅ | | ✅ | ✅ |
+| `manage_disposisi` | ✅ | ✅ | | ✅ | ✅ |
+| `reply_disposisi` | ✅ | ✅ | | ✅ | ✅ |
+| `view_surat_keluar` | ✅ | ✅ | | ✅ | ✅ |
+| `manage_surat_keluar` | ✅ | ✅ | | ✅ | |
+| `approve_surat_keluar` | ✅ | | | | ✅ |
+| `manage_admin_users` | ✅ | | | | |
+
+---
+
+#### Contoh Penggunaan di Komponen
+
+```tsx
+import { usePermission } from '../hooks/usePermission';
+import PermissionGate from '../components/ui/PermissionGate';
+import { MANAGE_BERITA, APPROVE_SURAT_KELUAR } from '../lib/permissions';
+
+// Hook: logika di dalam komponen
+const { can, canAny } = usePermission();
+{can(MANAGE_BERITA) && <Button>Tambah Berita</Button>}
+
+// PermissionGate: deklaratif di JSX
+<PermissionGate permission={APPROVE_SURAT_KELUAR}>
+  <Button>Setujui Surat</Button>
+</PermissionGate>
+
+<PermissionGate anyOf={[VIEW_SURAT_MASUK, MANAGE_SURAT_MASUK]} fallback={<p>Akses ditolak</p>}>
+  <SuratMasukTable />
+</PermissionGate>
+```
+
+---
+
 ### Phase 1 — Type System (src/types/index.ts)
 
-- [ ] Ubah `AuthUser.role: string` → `roles: Role[]`
-- [ ] Tambah interface `Role` (dengan `admins_count?: number`)
+- [x] Ubah `AuthUser.role: string` → `roles: Role[]`
+- [x] Tambah `permissions: string[]` ke `AuthUser` (PBAC)
+- [x] Tambah interface `Role` (dengan `admins_count?: number`)
 - [ ] Tambah interface `RoleWithAdmins`
 - [ ] Tambah interface `AdminUser` (untuk admin management)
 - [ ] Tambah interface `Tamu`
@@ -58,9 +151,11 @@ Dokumen ini adalah panduan implementasi lengkap untuk menambahkan tiga fitur bar
 
 ### Phase 2 — Auth Store (src/stores/authStore.ts)
 
-- [ ] Update `AuthUser` reference → gunakan tipe baru dengan `roles: Role[]`
-- [ ] Tambah helper `hasRole(role: string): boolean`
-- [ ] Tambah helper `hasAnyRole(roles: string[]): boolean`
+- [x] Update `AuthUser` reference → gunakan tipe baru dengan `roles: Role[]`
+- [x] Tambah helper `hasRole(role: string): boolean`
+- [x] Tambah helper `hasAnyRole(roles: string[]): boolean`
+- [x] Tambah helper `hasPermission(permission: string): boolean` (PBAC)
+- [x] Tambah helper `hasAnyPermission(permissions: string[]): boolean` (PBAC)
 
 ### Phase 3 — API Layer (src/api/index.ts)
 
@@ -71,21 +166,24 @@ Dokumen ini adalah panduan implementasi lengkap untuk menambahkan tiga fitur bar
 - [ ] Tambah `roleManagementApi` (getAll, create, getById, update, delete)
 - [ ] Tambah `adminManagementApi` (getAll, create, getById, update, syncRoles, delete)
 
-### Phase 4 — Role-Based Route Guard (src/components/layout/RoleProtectedRoute.tsx)
+### Phase 4 — Route Guard berbasis Permission (PBAC)
 
-- [ ] Buat komponen `RoleProtectedRoute` yang menerima prop `roles: string[]`
-- [ ] Redirect ke `/forbidden` (403) jika user tidak punya role yang diperlukan
-- [ ] Buat halaman `src/pages/ForbiddenPage.tsx`
+- [x] Buat `src/hooks/usePermission.ts` — hook `can`, `canAny`, `canAll`
+- [x] Buat `src/components/ui/PermissionGate.tsx` — komponen inline gate
+- [x] Buat `src/components/layout/PermissionProtectedRoute.tsx` — route guard berbasis permission
+- [x] `RoleProtectedRoute.tsx` — tetap ada untuk backward-compat jika diperlukan
+- [x] Redirect ke `/forbidden` (403) jika tidak punya permission
+- [x] Halaman `src/pages/ForbiddenPage.tsx`
 
-### Phase 5 — Sidebar Role-Aware (src/components/layout/Sidebar.tsx)
+### Phase 5 — Sidebar berbasis Permission (src/components/layout/Sidebar.tsx)
 
-- [ ] Tambah properti `roles?: string[]` pada tiap nav item (opsional = semua role)
-- [ ] Filter nav items berdasarkan `useAuthStore().user.roles`
-- [ ] Tambah nav item baru:
-  - **Loby Tamu** (resepsionis, admin, super_admin): `/tamu`
-  - **Surat Masuk** (petugas_surat, pimpinan, admin, super_admin): `/surat-masuk`
-  - **Surat Keluar** (petugas_surat, pimpinan, admin, super_admin): `/surat-keluar`
-  - **Admin Management** (super_admin): `/admin-management`
+- [x] Tambah properti `permissions?: string[]` pada tiap nav item (PBAC)
+- [x] Filter nav items berdasarkan `usePermission().canAny(item.permissions)`
+- [x] Nav item baru:
+  - **Loby Tamu** (`view_tamu`): `/tamu`
+  - **Surat Masuk** (`view_surat_masuk`): `/surat-masuk`
+  - **Surat Keluar** (`view_surat_keluar`): `/surat-keluar`
+  - **Kelola Admin** (`manage_admin_users`): `/admin-management`
 
 ### Phase 6 — Layout Updates (src/components/layout/Layout.tsx)
 
@@ -175,12 +273,18 @@ Dokumen ini adalah panduan implementasi lengkap untuk menambahkan tiga fitur bar
 
 ### Phase 8 — App.tsx Routes
 
-- [ ] Tambah semua route baru di dalam `<Route element={<Layout />}>`
-- [ ] Bungkus route sensitif dalam `RoleProtectedRoute`:
-  - `/tamu` → roles: `resepsionis, admin, super_admin`
-  - `/surat-masuk`, `/surat-masuk/*` → roles: `petugas_surat, pimpinan, admin, super_admin`
-  - `/surat-keluar`, `/surat-keluar/*` → roles: `petugas_surat, pimpinan, admin, super_admin`
-  - `/admin-management`, `/admin-management/*` → roles: `super_admin`
+- [x] Tambah semua route baru di dalam `<Route element={<Layout />}>`
+- [x] Bungkus route dalam `PermissionProtectedRoute` (berbasis permission, bukan role):
+  - `/profile` → `manage_profile`
+  - `/jumbotron` → `manage_jumbotron`
+  - `/organisasi` → `manage_organisasi`
+  - `/berita` → `manage_berita`
+  - `/layanan` → `manage_layanan`
+  - `/kontak` → `view_kontak`
+  - `/tamu` → `view_tamu`
+  - `/surat-masuk`, `/surat-masuk/*` → `view_surat_masuk`
+  - `/surat-keluar`, `/surat-keluar/*` → `view_surat_keluar`
+  - `/admin-management` → `manage_admin_users`
 
 ---
 
