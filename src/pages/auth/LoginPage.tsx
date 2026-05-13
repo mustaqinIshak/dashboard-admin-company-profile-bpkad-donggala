@@ -4,16 +4,19 @@ import { z } from 'zod';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Lock, Mail, Eye, EyeOff } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { authApi } from '../../api';
 import { useAuthStore } from '../../stores/authStore';
 import { extractApiData } from '../../utils';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
+
 const schema = z.object({
   email: z.string().email('Email tidak valid'),
-  password: z.string().min(6, 'Password minimal 6 karakter'),
+  password: z.string().min(8, 'Password minimal 8 karakter'),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -22,6 +25,37 @@ const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const { setAuth, isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
+
+  // Rate limiting state (in-memory only — not persisted to localStorage)
+  const attemptCount = useRef(0);
+  const lockUntil = useRef<number | null>(null);
+  const [remainingSeconds, setRemainingSeconds] = useState(0);
+
+  // Countdown timer when locked out
+  useEffect(() => {
+    if (!lockUntil.current) return;
+    const tick = () => {
+      const remaining = Math.ceil(((lockUntil.current ?? 0) - Date.now()) / 1000);
+      if (remaining <= 0) {
+        lockUntil.current = null;
+        attemptCount.current = 0;
+        setRemainingSeconds(0);
+      } else {
+        setRemainingSeconds(remaining);
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [remainingSeconds]);
+
+  const isLockedOut = remainingSeconds > 0;
+
+  const formatCountdown = (secs: number) => {
+    const m = Math.floor(secs / 60).toString().padStart(2, '0');
+    const s = (secs % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
 
   const {
     register,
@@ -36,24 +70,46 @@ const LoginPage: React.FC = () => {
   }
 
   const onSubmit = async (data: FormData) => {
+    // Check lockout before making any request
+    if (lockUntil.current && Date.now() < lockUntil.current) {
+      const secs = Math.ceil((lockUntil.current - Date.now()) / 1000);
+      setRemainingSeconds(secs);
+      toast.error(`Terlalu banyak percobaan. Coba lagi dalam ${formatCountdown(secs)}`);
+      return;
+    }
+
     try {
       const res = await authApi.login(data);
       const loginData = extractApiData(res);
-      const token = loginData?.token;
       // Backend returns 'admin' key, not 'user'
       const user = loginData?.admin || loginData?.user;
-      if (!token || !user) {
+      if (!user) {
         toast.error('Login gagal: respons tidak valid');
         return;
       }
-      setAuth(token, user);
+      // Reset rate limit on successful login
+      attemptCount.current = 0;
+      lockUntil.current = null;
+      setRemainingSeconds(0);
+      setAuth(user);
       toast.success(`Selamat datang, ${user.name}!`);
       navigate('/');
     } catch (error: unknown) {
       if (useAuthStore.getState().isAuthenticated) return;
-      const err = error as { response?: { data?: { message?: string } } };
-      const msg = err.response?.data?.message || 'Login gagal, cek email & password';
-      toast.error(msg);
+
+      // Increment attempt counter
+      attemptCount.current += 1;
+      if (attemptCount.current >= MAX_ATTEMPTS) {
+        const until = Date.now() + LOCKOUT_MS;
+        lockUntil.current = until;
+        setRemainingSeconds(Math.ceil(LOCKOUT_MS / 1000));
+        toast.error(`Akun dikunci sementara selama 15 menit karena terlalu banyak percobaan login.`);
+      } else {
+        const remaining = MAX_ATTEMPTS - attemptCount.current;
+        const err = error as { response?: { data?: { message?: string } } };
+        const msg = err.response?.data?.message || 'Login gagal, cek email & password';
+        toast.error(`${msg} (${remaining} percobaan tersisa)`);
+      }
     }
   };
 
@@ -83,6 +139,17 @@ const LoginPage: React.FC = () => {
               Masuk ke Dashboard
             </h2>
 
+            {/* Lockout banner */}
+            {isLockedOut && (
+              <div className="mb-5 flex items-start gap-3 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                <Lock className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>
+                  Terlalu banyak percobaan login. Coba lagi dalam{' '}
+                  <span className="font-mono font-semibold">{formatCountdown(remainingSeconds)}</span>.
+                </span>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
               <div className="relative">
                 <Input
@@ -90,6 +157,7 @@ const LoginPage: React.FC = () => {
                   type="email"
                   placeholder="admin@bpkad.go.id"
                   error={errors.email?.message}
+                  disabled={isLockedOut}
                   {...register('email')}
                 />
                 <Mail className="absolute right-3 top-8 h-4 w-4 text-gray-400 pointer-events-none" />
@@ -101,6 +169,7 @@ const LoginPage: React.FC = () => {
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   error={errors.password?.message}
+                  disabled={isLockedOut}
                   {...register('password')}
                 />
                 <button
@@ -121,6 +190,7 @@ const LoginPage: React.FC = () => {
                 variant="primary"
                 className="w-full py-3"
                 loading={isSubmitting}
+                disabled={isLockedOut}
               >
                 {isSubmitting ? 'Sedang masuk...' : 'Masuk'}
               </Button>

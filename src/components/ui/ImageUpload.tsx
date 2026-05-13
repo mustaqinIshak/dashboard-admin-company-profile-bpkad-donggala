@@ -1,6 +1,10 @@
 import { ImageIcon, X } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { cn } from '../../utils/cn';
+
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
 
 interface ImageUploadProps {
   label?: string;
@@ -22,14 +26,26 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-      onChange(file);
+    if (!file) return;
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error('Format file tidak didukung. Gunakan JPG, PNG, atau WebP.');
+      e.target.value = '';
+      return;
     }
+
+    if (file.size > MAX_SIZE_BYTES) {
+      toast.error('Ukuran file terlalu besar. Maksimal 2 MB.');
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    onChange(file);
   };
 
   const handleRemove = () => {
@@ -84,7 +100,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp"
         className="hidden"
         onChange={handleFileChange}
       />
